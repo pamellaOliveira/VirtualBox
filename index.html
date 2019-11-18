@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+    <title> TESSETE </title>
+    </head>
+		<header>
+			<div class="container">
+				<h1>virt-vm-form</h1>
+			</div>
+        </header>
+    <body>
+        <form name="formvm" action="." method="post">
+                <div>
+                    <label>Nome Nova VM:</label>
+                    <input type="text" name="nomeNova">
+                </div>
+                <div>
+                    <label>Quantidade CPUs:</label>
+                    <input type="text" name="cpu">
+                </div>
+                <div>
+                    <label>Tamanho Memória:</label>
+                    <input type="text" name="memoria">
+                </div>
+                <div>
+                    <label>Escolha Sistema Operacional
+                    <select name="so">
+                        <option value="1">Linux</option> 
+                        <option value="2" selected>Windows</option>
+                    </select>
+                </div>
+                <div>
+                <input type="submit" value="Clonar">
+                </div>
+                
+        </form>
+    </body>
+        
+
+    </head>
+</html>
