@@ -1,0 +1,163 @@
+from flask import Flask, render_template, request
+import subprocess
+import json
+import threading
+app = Flask(__name__)
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+def ajeitandoListarVms(out):
+    infoVMS = {}
+    aux = out.decode('utf-8')
+    vms = aux.split("Configured memory balloon size")
+    for j in range(len(vms)-1):
+        dic = {}
+        a = str(vms[j])
+        b = a.split("\r\n")
+        for i in b:
+            if "Name:" in i:
+                aux2 = i.split()
+                valor = str(aux2[-1])
+                dic["Name"] = valor
+            if "Guest OS" in i and "Windows" in i:
+                aux2 = i.split()
+                dic["Guest OS"] = str(aux2[-3] + aux2[-2] + aux2[-1])
+            if "Guest OS" in i and "Ubuntu" in i:
+                aux2 = i.split()
+                dic["Guest OS"] = str(aux2[-2] + aux2[-1])
+            if "Memory size" in i:
+                aux2 = i.split()
+                dic["Memory size"] = str(aux2[-1])
+            if "Hardware UUID" in i:
+                aux2 = i.split()
+                dic["Hardware UUID"] = str(aux2[-1])
+            if "Number of CPUs" in i:
+                aux2 = i.split()
+                dic["Number of CPUs"] = str(aux2[-1])
+        infoVMS[j] = dic
+        #print(infoVMS)
+    return infoVMS
+
+
+def listarVMs():
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VboxManage"'
+    command = " list -l vms"
+    junto = mPath + command
+    proc = subprocess.Popen(junto,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    listaVMS = ajeitandoListarVms(out)
+    return listaVMS
+
+@app.route('/',methods = ['POST'])
+def retornaValores():
+    nomeNova = request.form['nomeNova']
+    cpu = request.form['cpu']
+    memoria = request.form['memoria']
+    so = request.form['so']
+    nomeVelhaVM = buscandoNomeVM(so)
+    num_maq = '14'
+    ip = '192.168.0.2'
+    print(so)
+    t5 = threading.Thread(target=ipModificar, args=(num_maq,ip))
+    #t5.start()
+    #t5.join()
+    t1 = threading.Thread(target= clonarVM,args=(nomeVelhaVM,nomeNova))
+    t2 = threading.Thread(target= modificarMemoria, args= (nomeNova,memoria))
+    t3 = threading.Thread(target= modificarCpu, args= (nomeNova,cpu))
+    t4 = threading.Thread(target= startandoVM, args= (nomeNova,))
+    t5.start()
+    t5.join()
+    t1.start()
+    t1.join()
+    t2.start()
+    t2.join()
+    t3.start()
+    t3.join()
+    t4.start()
+    t4.join()
+    return listarVMs()
+
+
+def buscandoNomeVM(so): 
+    if str(so) == "2":
+        nameVM = "bora"
+    if str(so) == "1":
+        nameVM = "ubuntu2"
+    return nameVM
+
+def startandoVM(nomeNova):
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage"'
+    command = " startvm " + nomeNova 
+    junto = mPath + command
+    proc = subprocess.Popen(junto,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    print("startando")
+    return junto
+
+def ipModificar(num_maq,ip):
+    print("mofiip")
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage"'
+    command1 =" hostonlyif create" 
+    junto1 = mPath + command1
+    print(junto1)
+    proc1 = subprocess.Popen(junto1,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc1.communicate()
+    command2 = " hostonlyif ipconfig vboxnet9 --ip 192.168."+num_maq+".1" 
+    junto2 = mPath + command2
+    print(junto2)
+    proc2 = subprocess.Popen(junto2,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc2.communicate()
+    command3 =" modifyvm bora --hostonlyadapter1 vboxnet9" 
+    junto3 = mPath + command3
+    print(junto3)
+    proc3 = subprocess.Popen(junto3,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc3.communicate()
+    command4 = " modifyvm bora --nic1 hostonly"
+    junto4 = mPath + command4
+    print(junto4)
+    proc4 = subprocess.Popen(junto4,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc4.communicate()
+    command5 = " dhcpserver add --ifname vboxnet9 --ip 192.168."+num_maq+".1 --netmask 255.255.255.0 --lowerip "+ip+" --upperip "+ip
+    junto5 = mPath + command5
+    print(junto5)
+    proc5 = subprocess.Popen(junto5,stdout=subprocess.PIPE, shell=True) 
+    (out, err) = proc5.communicate()
+    command6 = " dhcpserver modify --ifname vboxnet"+num_maq+" --enable"
+    junto6 = mPath + command6
+    print(junto6)
+    proc6 = subprocess.Popen(junto6,stdout=subprocess.PIPE, shell=True) 
+    (out, err) = proc6.communicate()
+    return junto4
+
+def clonarVM(nomeVelhaVM,nomeNova):
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage"'
+    command = " clonevm " + nomeVelhaVM + " --name " + nomeNova +  " --register"
+    junto = mPath + command
+    print(junto)
+    proc = subprocess.Popen(junto,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    print("clonando")
+    return junto
+
+
+def modificarMemoria(nomeNova,memoria):
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage"'
+    command = " modifyvm " + nomeNova + " --memory " + memoria 
+    junto = mPath + command
+    proc = subprocess.Popen(junto,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    print("memoria")
+    return junto 
+
+def modificarCpu(nomeNova,cpu):
+    mPath = '"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage"'
+    command = " modifyvm " + nomeNova + " --cpus " + cpu 
+    junto = mPath + command
+    print("cpu")
+    proc = subprocess.Popen(junto,stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    return junto
+app.run(port=5000,debug=True)
